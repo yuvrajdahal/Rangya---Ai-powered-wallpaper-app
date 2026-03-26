@@ -1,0 +1,115 @@
+import { ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, View, XStack, YStack } from "tamagui";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { Ionicons } from "@expo/vector-icons";
+import { Skeleton } from "@/components/Skeleton";
+import { ArtistChip } from "@/components/explore/ArtistChip";
+import { API_URL } from "@/lib/auth-client";
+import { BlurView } from "expo-blur";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+
+export default function AllArtistsScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+
+  const { data: artists = [], isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["artists"],
+    queryFn: async () => {
+      const response = await axios.get(`${API_URL}/images/artists`);
+      return response.data.artists || [];
+    },
+  });
+
+  const isDark = colorScheme === "dark";
+  const iconColor = isDark ? "#fff" : "#111";
+  const pillBg = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)";
+  const barBorderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+
+  return (
+    <View flex={1} backgroundColor="$background">
+      <SafeAreaView
+        edges={["top"]}
+        style={{
+          borderBottomWidth: 0.5,
+          borderBottomColor: barBorderColor,
+        }}
+      >
+        <BlurView
+          intensity={72}
+          tint={isDark ? "dark" : "light"}
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+          }}
+        >
+          <XStack alignItems="center" justifyContent="space-between">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: pillBg, alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="chevron-back" size={22} color={iconColor} />
+            </TouchableOpacity>
+            <Text fontSize={17} fontWeight="700" color="$color" numberOfLines={1} flex={1} textAlign="center" marginHorizontal="$3">
+              All Artists
+            </Text>
+            <View width={38} />
+          </XStack>
+        </BlurView>
+      </SafeAreaView>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={refetch}
+            tintColor={iconColor}
+          />
+        }
+      >
+        <YStack padding="$4" paddingTop="$3" gap="$4">
+          {/* Header */}
+          <YStack paddingHorizontal="$1">
+            <Text fontSize={28} fontWeight="800" color="$color" lineHeight={34}>
+              Artists
+            </Text>
+            <Text color="$color11" fontSize={14} marginTop="$1">
+              {isLoading
+                ? "Loading…"
+                : `${artists.length} creator${artists.length !== 1 ? "s" : ""} on Rangya`}
+            </Text>
+          </YStack>
+
+          {/* Grid of artist chips */}
+          {isLoading ? (
+            <XStack flexWrap="wrap" gap="$5" paddingHorizontal="$1">
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <YStack key={i} alignItems="center" gap="$2" width={80}>
+                  <Skeleton width={72} height={72} borderRadius={36} />
+                  <Skeleton width={56} height={10} borderRadius={5} />
+                </YStack>
+              ))}
+            </XStack>
+          ) : artists.length > 0 ? (
+            <XStack flexWrap="wrap" gap="$5" paddingHorizontal="$1">
+              {artists.map((artist: any) => (
+                <ArtistChip key={artist.id} artist={artist} isDark={isDark} />
+              ))}
+            </XStack>
+          ) : (
+            <YStack padding="$10" alignItems="center" gap="$3">
+              <Ionicons name="people-outline" size={64} color="$color8" />
+              <Text color="$color8" fontSize={16} textAlign="center">
+                No artists yet
+              </Text>
+            </YStack>
+          )}
+        </YStack>
+      </ScrollView>
+    </View>
+  );
+}

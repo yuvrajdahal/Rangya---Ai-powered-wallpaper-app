@@ -1,0 +1,185 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+  savedImages   SavedImage[]
+  payments      Payment[]
+  downloads     Download[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+// Custom Models
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  images    Image[]
+  createdAt DateTime @default(now())
+
+  @@map("category")
+}
+
+model Image {
+  id           String      @id @default(uuid())
+  url          String
+  userId       String                        // uploader
+  categoryId   String?
+  category     Category?   @relation(fields: [categoryId], references: [id])
+  blurhash     String?
+  createdAt    DateTime    @default(now())
+  width        Int?
+  height       Int?
+  palette      String[]                      // ["#hex1", "#hex2", "#hex3"]
+  colorTone    ColorTone   @default(NEUTRAL)
+
+  // Premium fields
+  isPremium    Boolean     @default(false)
+  price        Int?                          // Price in Paisa (NPR). null = free
+  title        String?
+  description  String?
+
+  savedBy      SavedImage[]
+  payments     Payment[]
+  downloads    Download[]
+
+  @@map("image")
+}
+
+model SavedImage {
+  id        String   @id @default(uuid())
+  userId    String
+  imageId   String
+  type      String   @default("FAVORITE")   // FAVORITE or APPLIED
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  image     Image    @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, imageId, type])
+  @@map("saved_image")
+}
+
+/// Tracks a Khalti payment session for purchasing a premium image.
+model Payment {
+  id                String        @id @default(uuid())
+  userId            String
+  imageId           String
+
+  // Khalti fields
+  pidx              String        @unique   // Khalti payment identifier
+  purchaseOrderId   String        @unique   // Our internal order id
+  amount            Int                     // Amount in Paisa
+  status            PaymentStatus @default(INITIATED)
+
+  // Populated after successful lookup
+  transactionId     String?
+  khaltiMobile      String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  image             Image         @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  download          Download?
+
+  @@map("payment")
+}
+
+/// Represents a user's access to download a (free or purchased) image.
+model Download {
+  id          String   @id @default(uuid())
+  userId      String
+  imageId     String
+  paymentId   String?  @unique              // null for free downloads
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  image       Image    @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  payment     Payment? @relation(fields: [paymentId], references: [id])
+
+  @@unique([userId, imageId])               // one download record per user per image
+  @@map("download")
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  EXPIRED
+  USER_CANCELED
+
+  @@map("payment_status")
+}
+
+enum ColorTone {
+  WARM
+  COOL
+  NEUTRAL
+  DARK
+  LIGHT
+
+  @@map("color_tone")
+}
