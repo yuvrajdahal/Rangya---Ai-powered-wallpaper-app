@@ -30,11 +30,11 @@ export class PaymentController {
 
       const { payment, status, lookup } = await this.service.handleCallback(pidx);
       
-      const redirectBase = process.env.WEBSITE_URL || "exp://192.168.100.13:8081";
+      const redirectBase = process.env.WEBSITE_URL || "http://192.168.100.13:8081";
       if (status === "COMPLETED") {
-        res.redirect(`${redirectBase}/payment/success?imageId=${payment.imageId}`);
+        res.redirect(`${redirectBase}/payment-success?pidx=${pidx}`);
       } else {
-        res.redirect(`${redirectBase}/payment/failed?reason=${lookup.status}`);
+        res.redirect(`${redirectBase}/payment-failed?pidx=${pidx}`);
       }
     } catch (error: any) {
       console.error("Callback Error:", error);

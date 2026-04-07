@@ -8,6 +8,9 @@ export class PaymentService {
   async initiate(userId: string, imageId: string, websiteUrl: string, backendUrl: string) {
     const image = await this.repo.findImageById(imageId);
     if (!image) throw new Error("Image not found");
+    if ((image as any).userId === userId) {
+      throw new Error("You cannot purchase your own wallpaper.");
+    }
     if (!(image as any).isPremium) throw new Error("Image is free — use the free download endpoint");
     if (!(image as any).price) throw new Error("Image price not set");
 
@@ -21,7 +24,7 @@ export class PaymentService {
     const payment = await this.repo.createPayment({
       userId,
       imageId,
-      pidx: `PENDING_${purchaseOrderId}`,   // unique placeholder until Khalti responds
+      pidx: `PENDING_${purchaseOrderId}`,   
       purchaseOrderId,
       amount: (image as any).price,
       status: "INITIATED",

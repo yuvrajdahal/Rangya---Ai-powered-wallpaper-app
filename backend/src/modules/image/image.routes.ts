@@ -2,37 +2,38 @@ import { Router } from "express";
 import { ImageController } from "./image.controller";
 import { upload } from "../../middlewares/upload";
 import { isAuthenticated } from "../../middlewares/auth";
+import { asyncHandler } from "../../utils/async-handler";
 
 const router = Router();
 const controller = new ImageController();
 
-// GET all images for explore page
-router.get("/", controller.getAllImages);
+router.get("/", asyncHandler(controller.getAllImages));
 
-// GET search endpoint (?q=&tone=&palette=)
-router.get("/search", controller.searchImages);
+router.get("/diverse", asyncHandler(controller.getDiverseFeed));
 
-// GET top artists based on upload count
-router.get("/artists", controller.getTopArtists);
+router.get("/search", asyncHandler(controller.searchImages));
 
-// GET images by a specific artist
-router.get("/artist/:id", controller.getArtistImages);
+router.get("/stats", isAuthenticated, asyncHandler(controller.getStats));
 
-// POST generate AI image
-router.post("/generate", controller.generateImage);
+router.get("/artists", asyncHandler(controller.getTopArtists));
 
-// POST new image upload
+router.get("/artist/:id", asyncHandler(controller.getArtistImages));
+
+router.post("/generate", asyncHandler(controller.generateImage));
+
 router.post(
   "/upload",
   isAuthenticated,
   upload.single("image"),
-  controller.uploadImage,
+  asyncHandler(controller.uploadImage),
 );
 
-// GET saved images
-router.get("/saved", isAuthenticated, controller.getSavedImages);
+router.get("/saved", isAuthenticated, asyncHandler(controller.getSavedImages));
 
-// POST toggle save image
-router.post("/saved/:id", isAuthenticated, controller.toggleSaveImage);
+router.post(
+  "/saved/:id",
+  isAuthenticated,
+  asyncHandler(controller.toggleSaveImage),
+);
 
 export default router;

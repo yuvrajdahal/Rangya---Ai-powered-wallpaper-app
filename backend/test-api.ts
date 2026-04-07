@@ -1,6 +1,6 @@
 async function test() {
   const r = await fetch("http://localhost:3000/api/images");
-  const d = await r.json();
+  const d = (await r.json()) as any;
   const imagesWithPalette = d.images.filter(
     (i: any) => i.palette && i.palette.length > 0,
   );

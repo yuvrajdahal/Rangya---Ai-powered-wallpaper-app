@@ -9,7 +9,7 @@ const headers = {
 export interface InitiatePayload {
   return_url: string;
   website_url: string;
-  amount: number; // in Paisa
+  amount: number; 
   purchase_order_id: string;
   purchase_order_name: string;
   customer_info?: {
@@ -29,13 +29,13 @@ export interface KhaltiInitResponse {
 export interface KhaltiLookupResponse {
   pidx: string;
   total_amount: number;
-  status: string; // "Completed" | "Pending" | "Initiated" | "Refunded" | "Expired" | "User canceled"
+  status: string; 
   transaction_id: string | null;
   fee: number;
   refunded: boolean;
 }
 
-/** Step 1 — Initiate a payment request (server-side only) */
+
 export async function initiatePayment(
   payload: InitiatePayload,
 ): Promise<KhaltiInitResponse> {
@@ -50,10 +50,10 @@ export async function initiatePayment(
     throw new Error(`Khalti initiate failed: ${JSON.stringify(err)}`);
   }
 
-  return res.json();
+  return (await res.json()) as KhaltiInitResponse;
 }
 
-/** Step 2 — Lookup / verify a payment after callback (server-side only) */
+
 export async function lookupPayment(
   pidx: string,
 ): Promise<KhaltiLookupResponse> {
@@ -68,5 +68,5 @@ export async function lookupPayment(
     throw new Error(`Khalti lookup failed: ${JSON.stringify(err)}`);
   }
 
-  return res.json();
+  return (await res.json()) as KhaltiLookupResponse;
 }

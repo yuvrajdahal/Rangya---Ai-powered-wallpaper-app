@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 
-// Initialize Gemini
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY || "");
 
-// Convert local file to generative part
+
 function fileToGenerativePart(filePath: string, mimeType: string) {
   return {
     inlineData: {
@@ -48,7 +48,7 @@ Output strictly valid JSON.
       const result = await model.generateContent([prompt, imagePart]);
       let responseText = result.response.text();
 
-      // Extract raw JSON between braces in case of any markdown bloat
+      
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         responseText = jsonMatch[0];
@@ -58,7 +58,7 @@ Output strictly valid JSON.
 
       const normalizedTone = String(parsed.colorTone).toUpperCase();
 
-      // Validate the parsed response
+      
       if (
         !["WARM", "COOL", "NEUTRAL", "DARK", "LIGHT"].includes(
           normalizedTone,
@@ -71,7 +71,7 @@ Output strictly valid JSON.
 
       return {
         colorTone: normalizedTone as GeminiAnalysisResult["colorTone"],
-        palette: parsed.palette.slice(0, 5), // Ensure 5 max
+        palette: parsed.palette.slice(0, 5), 
       };
     } catch (error) {
       console.error("Error analyzing image with Gemini:", error);
@@ -86,21 +86,22 @@ Output strictly valid JSON.
 
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
-      
+
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      
+
       const candidates = response.candidates;
-      if (candidates && candidates.length > 0) {
-        const parts = candidates[0].content?.parts;
-        if (parts && parts.length > 0) {
+      const firstCandidate = candidates?.[0];
+      if (firstCandidate && firstCandidate.content?.parts) {
+        const parts = firstCandidate.content.parts;
+        if (parts.length > 0) {
           const inlineData = parts.find((p: any) => p.inlineData)?.inlineData;
           if (inlineData && inlineData.data) {
             return Buffer.from(inlineData.data, "base64");
           }
         }
+
         
-        // Sometimes the API might wrap the image in a different format
         const text = response.text();
         if (text) {
           throw new Error(`Model returned text instead of an image: ${text.substring(0, 50)}... Make sure the chosen model supports image generation.`);
@@ -111,6 +112,23 @@ Output strictly valid JSON.
     } catch (error) {
       console.error("Error generating image with Gemini:", error);
       throw error;
+    }
+  }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    if (!process.env.GEMINI_KEY) {
+      throw new Error("GEMINI_KEY is not set.");
+    }
+
+    try {
+      const model = genAI.getGenerativeModel({
+        model: "models/gemini-embedding-001",
+      });
+      const result = await model.embedContent(text);
+      return result.embedding.values;
+    } catch (error) {
+      console.error("Error generating embedding with Gemini:", error);
+      return [];
     }
   }
 }

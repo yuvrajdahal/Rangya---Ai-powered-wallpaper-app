@@ -4,6 +4,7 @@ import { encode } from "blurhash";
 import { GeminiService } from "../gemini/gemini.service";
 import { ColorTone } from "@prisma/client";
 import { db } from "../../db";
+import { cosineSimilarity } from "../../utils/similarity";
 
 const getImageMetadata = async (
   filePath: string,
@@ -37,19 +38,19 @@ export class ImageService {
   private geminiService = new GeminiService();
 
   async uploadImage(
-    file: Express.Multer.File,
+    file: any, 
     userId: string,
     categoryId?: string,
     isPremium: boolean = false,
     price: number | null = null,
     title?: string,
-    description?: string
+    description?: string,
+    isAi: boolean = false
   ) {
     if (!file) {
       throw new Error("No file provided");
     }
 
-    // Construct the URL path to serve the image statically
     const url = `/uploads/${file.filename}`;
 
     let blurhash: string | undefined = undefined;
@@ -57,6 +58,7 @@ export class ImageService {
     let height: number | undefined = undefined;
     let palette: string[] | undefined = undefined;
     let colorTone: ColorTone | undefined = undefined;
+    let embedding: number[] = [];
 
     try {
       const metadata = await getImageMetadata(file.path);
@@ -70,7 +72,7 @@ export class ImageService {
     try {
       const analysis = await this.geminiService.analyzeImage(
         file.path,
-        file.mimetype,
+        file.mimetype
       );
       if (analysis) {
         palette = analysis.palette;
@@ -78,6 +80,14 @@ export class ImageService {
       }
     } catch (e) {
       console.error("Failed to analyze image with Gemini", e);
+    }
+
+    
+    try {
+      const textToEmbed = title || description || "wallpaper";
+      embedding = await this.geminiService.generateEmbedding(textToEmbed);
+    } catch (e) {
+      console.error("Failed to generate embedding", e);
     }
 
     return this.repo.create(
@@ -92,7 +102,9 @@ export class ImageService {
       isPremium,
       price,
       title,
-      description
+      description,
+      isAi,
+      embedding
     );
   }
 
@@ -126,14 +138,26 @@ export class ImageService {
     }
 
     if (query?.trim()) {
-      where.category = {
-        name: { contains: query.trim(), mode: "insensitive" },
-      };
+      const q = query.trim();
+      where.OR = [
+        { title: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { category: { name: { contains: q, mode: "insensitive" } } },
+        { user: { name: { contains: q, mode: "insensitive" } } },
+      ];
     }
 
     return db.image.findMany({
       where,
-      include: { category: true },
+      include: {
+        category: true,
+        user: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -209,13 +233,21 @@ export class ImageService {
       where: { userId },
       include: {
         image: {
-          include: { category: true },
+          include: {
+            category: true,
+            user: {
+              select: {
+                name: true,
+                image: true,
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // De-duplicate images if they are both favorited and applied
+    
     const seen = new Set();
     const images = [];
     for (const s of saved) {
@@ -225,5 +257,44 @@ export class ImageService {
       }
     }
     return images;
+  }
+
+  
+  async getDiverseImages(threshold: number = 0.9) {
+    const allImages = await this.repo.findAll();
+    const diverse: any[] = [];
+
+    for (const image of allImages) {
+      
+      if (!image.embedding || (image.embedding as number[]).length === 0) {
+        diverse.push(image);
+        continue;
+      }
+
+      let isDuplicate = false;
+      for (const selected of diverse) {
+        if (!selected.embedding || (selected.embedding as number[]).length === 0) continue;
+
+        const similarity = cosineSimilarity(
+          image.embedding as number[],
+          selected.embedding as number[]
+        );
+
+        if (similarity > threshold) {
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
+        diverse.push(image);
+      }
+    }
+
+    return diverse;
+  }
+
+  async getProfileStats(userId: string) {
+    return this.repo.getProfileStats(userId);
   }
 }

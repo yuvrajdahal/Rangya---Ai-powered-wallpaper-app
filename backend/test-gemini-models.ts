@@ -4,7 +4,7 @@ async function checkModels() {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_KEY}`,
   );
-  const data = await res.json();
+  const data = (await res.json()) as any;
   if (data.models) {
     const fs = require("fs");
     fs.writeFileSync(

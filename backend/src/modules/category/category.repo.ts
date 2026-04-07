@@ -6,7 +6,7 @@ export class CategoryRepository {
       orderBy: { name: "asc" },
       where: {
         images: {
-          some: {}, // Only return categories that have at least one image
+          some: {}, 
         },
       },
       include: {

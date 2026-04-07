@@ -3,24 +3,24 @@ async function main() {
   const model = "flux";
   const key = "sk_wHw6id7kcP4yPeh5y7jL7qG4gL9QBKqX";
   
-  const url = `https://gen.pollinations.ai/image/${prompt}?model=${model}&nologo=true`;
+  const url = `https://gen.pollinations.ai/image/${prompt}?model=${model}&nologo=true&width=720&height=1280`;
 
-  console.log(`Trying ${url}...`);
+  console.log(`Testing Pollinations with URL: ${url}`);
   try {
     const resp = await fetch(url, {
       headers: {
         Authorization: `Bearer ${key}`
       }
     });
-    console.log(`Status: ${resp.status} ${resp.statusText}`);
-    console.log(`Type: ${resp.headers.get("content-type")}`);
+    
+    console.log(`Status: ${resp.status}`);
     
     if (resp.ok) {
         const buffer = await resp.arrayBuffer();
-        console.log(`Success! Buffer length: ${buffer.byteLength}`);
+        console.log(`Success! Image size: ${buffer.byteLength} bytes`);
     } else {
         const text = await resp.text();
-        console.log(`Error body: ${text}`);
+        console.log(`Failed: ${text}`);
     }
   } catch(e) {
     console.error(e);

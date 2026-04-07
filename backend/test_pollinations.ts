@@ -2,17 +2,17 @@ async function main() {
   const prompt = encodeURIComponent("A red dog walking");
   
   const urls = [
-    `https://image.pollinations.ai/prompt/${prompt}?nologo=true`, // simple no model
-    `https://pollinations.ai/p/${prompt}?width=1024&height=1024&seed=42&nologo=true`
+    `https://gen.pollinations.ai/image/${prompt}?model=flux`,
+    `https://gen.pollinations.ai/image/${prompt}?model=turbo`,
   ];
 
   for (const url of urls) {
-    console.log(`Trying ${url}...`);
+    console.log(`Testing: ${url}`);
     try {
       const resp = await fetch(url);
-      console.log(`Status: ${resp.status} ${resp.statusText}`);
+      console.log(`Status: ${resp.status}`);
       if (resp.headers.get("content-type")) {
-        console.log(`Type: ${resp.headers.get("content-type")}`);
+        console.log(`Content-Type: ${resp.headers.get("content-type")}`);
       }
     } catch(e) {
       console.error(e);

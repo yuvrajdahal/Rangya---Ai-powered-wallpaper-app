@@ -7,7 +7,7 @@ import { db } from "../../db";
 
 const router = Router();
 
-// Endpoint for avatar upload
+
 router.post(
   "/upload-avatar",
   isAuthenticated,
@@ -21,7 +21,7 @@ router.post(
       const user = (req as any).user;
       const imageUrl = `/uploads/${req.file.filename}`;
 
-      // Update the user's image in the database
+      
       const updatedUser = await db.user.update({
         where: { id: user.id },
         data: { image: imageUrl },
@@ -38,7 +38,7 @@ router.post(
   }
 );
 
-// better-auth handles authentication endpoints internally
+
 router.use("/", toNodeHandler(auth));
 
 export default router;

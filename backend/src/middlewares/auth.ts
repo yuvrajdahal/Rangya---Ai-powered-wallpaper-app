@@ -7,7 +7,7 @@ export const isAuthenticated = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    // Convert Express headers to standard web Headers for better-auth
+    
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers)) {
       if (value) headers.set(key, value as string);
@@ -19,7 +19,7 @@ export const isAuthenticated = async (
       return;
     }
 
-    // Attach user info to request
+    
     (req as any).user = session.user;
     next();
   } catch (error) {

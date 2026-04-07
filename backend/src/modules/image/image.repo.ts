@@ -14,13 +14,15 @@ export class ImageRepository {
     isPremium: boolean = false,
     price: number | null = null,
     title?: string,
-    description?: string
+    description?: string,
+    isAi: boolean = false,
+    embedding: number[] = []
   ) {
     return db.image.create({
       data: {
         url,
         userId,
-        category: categoryId ? { connect: { id: categoryId } } : undefined,
+        categoryId: categoryId || undefined,
         blurhash,
         palette: palette || [],
         colorTone: colorTone || "NEUTRAL",
@@ -29,14 +31,24 @@ export class ImageRepository {
         isPremium,
         price,
         title,
-        description
+        description,
+        isAi,
+        embedding
       },
     });
   }
 
   async findAll() {
     return db.image.findMany({
-      include: { category: true },
+      include: {
+        category: true,
+        user: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -44,8 +56,28 @@ export class ImageRepository {
   async findByUserId(userId: string) {
     return db.image.findMany({
       where: { userId },
-      include: { category: true },
+      include: {
+        category: true,
+        user: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
+  }
+  
+  async getProfileStats(userId: string) {
+    const [uploads, downloads, favorites, saved, applied] = await Promise.all([
+      db.image.count({ where: { userId } }),
+      db.download.count({ where: { userId } }),
+      db.savedImage.count({ where: { userId, type: "FAVORITE" } }),
+      db.savedImage.count({ where: { userId, type: "SAVED" } }),
+      db.savedImage.count({ where: { userId, type: "APPLIED" } }),
+    ]);
+
+    return { uploads, downloads, favorites, saved, applied };
   }
 }
