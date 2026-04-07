@@ -32,7 +32,7 @@ export function ArtistChip({
       }
     >
       <YStack alignItems="center" gap={6} width={80}>
-        {/* Avatar ring + image */}
+        {}
         <View
           width={72}
           height={72}
@@ -69,7 +69,7 @@ export function ArtistChip({
               </Text>
             </LinearGradient>
           )}
-          {/* Border ring */}
+          {}
           <View
             style={{
               position: "absolute",
@@ -84,7 +84,7 @@ export function ArtistChip({
           />
         </View>
 
-        {/* First name */}
+        {}
         <Text
           fontSize={12}
           fontWeight="600"
@@ -96,7 +96,7 @@ export function ArtistChip({
           {artist.name.split(" ")[0]}
         </Text>
 
-        {/* Upload count badge */}
+        {}
         <View
           paddingHorizontal={8}
           paddingVertical={2}

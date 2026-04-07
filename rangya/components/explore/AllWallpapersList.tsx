@@ -38,6 +38,8 @@ export function AllWallpapersList({
                 imageUri={buildUrl(img.url)}
                 categoryName={img.category?.name}
                 blurhash={img.blurhash}
+                isAi={img.isAi}
+                user={img.user}
                 onPress={() => onNavigate(img)}
               />
             </View>

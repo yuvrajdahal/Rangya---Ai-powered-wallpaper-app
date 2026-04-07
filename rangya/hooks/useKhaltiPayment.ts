@@ -20,11 +20,11 @@ export function useKhaltiPayment() {
     try {
       const authHeaders = await getAuthHeaders();
       const { data } = await axios.post(
-        `${API_URL}/payments/downloads/free`,
+        `${API_URL}/payments/free`,
         { imageId },
         { headers: authHeaders }
       );
-      return data.imageUrl; // { success: true, imageUrl: string }
+      return data.imageUrl; 
     } catch (err: any) {
       throw new Error(err.response?.data?.error ?? "Free download failed");
     }

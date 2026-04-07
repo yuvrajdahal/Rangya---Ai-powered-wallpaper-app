@@ -72,7 +72,7 @@ export default function AllArtistsScreen() {
         }
       >
         <YStack padding="$4" paddingTop="$3" gap="$4">
-          {/* Header */}
+          {}
           <YStack paddingHorizontal="$1">
             <Text fontSize={28} fontWeight="800" color="$color" lineHeight={34}>
               Artists
@@ -84,7 +84,6 @@ export default function AllArtistsScreen() {
             </Text>
           </YStack>
 
-          {/* Grid of artist chips */}
           {isLoading ? (
             <XStack flexWrap="wrap" gap="$5" paddingHorizontal="$1">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (

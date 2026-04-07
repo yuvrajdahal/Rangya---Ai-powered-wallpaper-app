@@ -1,4 +1,17 @@
-import { Avatar, Text, View, YStack, XStack, useTheme } from "tamagui";
+import {
+  Avatar,
+  Text,
+  View,
+  YStack,
+  XStack,
+  useTheme,
+  Dialog,
+  Adapt,
+  Sheet,
+  Input,
+  Label,
+  Spinner,
+} from "tamagui";
 import {
   useSession,
   signOut,
@@ -7,7 +20,15 @@ import {
   getAuthHeaders,
 } from "../../lib/auth-client";
 import { useRouter } from "expo-router";
-import { TouchableOpacity, ScrollView, Alert } from "react-native";
+import {
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  RefreshControl,
+  Appearance,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -15,8 +36,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { buildUrl } from "@/lib/utils";
 
 function MenuItem({
   icon,
@@ -86,45 +110,85 @@ function MenuItem({
   );
 }
 
-// ── Stat badge ───────────────────────────────────────────────────
+
 function StatBadge({
   value,
   label,
   isDark,
+  loading,
 }: {
   value: string;
   label: string;
   isDark: boolean;
+  loading?: boolean;
 }) {
   return (
     <YStack
       flex={1}
       alignItems="center"
+      justifyContent="center"
       paddingVertical="$3"
+      height={StatBadgeHeight}
       gap="$1"
       backgroundColor={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"}
       borderRadius={16}
       borderWidth={1}
       borderColor={isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)"}
     >
-      <Text fontSize={22} fontWeight="800" color="$color" letterSpacing={-0.5}>
-        {value}
-      </Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={isDark ? "#fff" : "#3B82F6"} />
+      ) : (
+        <Text
+          fontSize={22}
+          fontWeight="800"
+          color="$color"
+          letterSpacing={-0.5}
+        >
+          {value}
+        </Text>
+      )}
       <Text fontSize={12} color="$color11" fontWeight="500">
         {label}
       </Text>
     </YStack>
   );
 }
+const StatBadgeHeight = 72;
 
-// ── Main ─────────────────────────────────────────────────────────
+
 export default function ProfileScreen() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, refetch, isRefetching } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { width } = Dimensions.get("window");
   const theme = useTheme();
+  const accentColor = theme.blue10?.val ?? "#3B82F6";
+  const iconColor = isDark ? "#fff" : "#111";
+
+  
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["profile-stats"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await axios.get(`${API_URL}/users/me/stats`, { headers });
+      return res.data;
+    },
+    enabled: !!session,
+  });
 
   const barBorderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
@@ -133,7 +197,73 @@ export default function ProfileScreen() {
     router.replace("/(tabs)/explore");
   };
 
-  // ── Loading ──
+  const handleEditPress = () => {
+    if (session) {
+      setEditName(session.user.name || "");
+      setEditEmail(session.user.email || "");
+      setIsEditOpen(true);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!editName.trim() || !editEmail.trim()) {
+      Alert.alert("Error", "Name and email are required");
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await authClient.updateUser({
+        name: editName,
+      });
+      setIsEditOpen(false);
+      Alert.alert("Success", "Profile updated successfully!");
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      Alert.alert("Error", "Failed to update profile");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("Error", "All password fields are required");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "New passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert("Error", "New password must be at least 8 characters long");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      await authClient.changePassword({
+        newPassword,
+        currentPassword,
+        revokeOtherSessions: true,
+      });
+      setIsPasswordModalOpen(false);
+      
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      Alert.alert("Success", "Password updated successfully!");
+    } catch (error) {
+      console.error("Password change failed:", error);
+      Alert.alert(
+        "Error",
+        "Failed to change password. Please check your current password.",
+      );
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  
   if (isPending) {
     return (
       <View
@@ -149,7 +279,6 @@ export default function ProfileScreen() {
     );
   }
 
-  // ── Logged In ──
   if (session) {
     const initials = session.user.name
       ?.split(" ")
@@ -173,20 +302,20 @@ export default function ProfileScreen() {
           setUploadingAvatar(true);
           const uri = result.assets[0].uri;
 
-          // Prepare FormData
+          
           const fileToUpload = {
             uri,
             type: "image/jpeg",
-            name: `avatar-${Date.now()}.jpg`,
+            name: `avatar_${Date.now()}.jpg`,
           } as any;
 
           const formData = new FormData();
           formData.append("image", fileToUpload);
 
-          // Upload to backend — gets back the new relative image path
+          
           const authHeaders = await getAuthHeaders();
           const res = await axios.post(
-            `${BASE_URL}/api/auth/upload-avatar`,
+            `${API_URL}/users/me/avatar`,
             formData,
             {
               headers: {
@@ -198,8 +327,8 @@ export default function ProfileScreen() {
 
           const newImagePath: string | undefined = res.data?.user?.image;
           if (newImagePath) {
-            // Sync the new image URL back into better-auth's session so
-            // useSession() picks it up immediately everywhere in the app.
+            
+            
             await authClient.updateUser({ image: newImagePath });
             Alert.alert("Success", "Profile picture updated!");
           }
@@ -214,7 +343,7 @@ export default function ProfileScreen() {
 
     return (
       <View flex={1} backgroundColor="$background">
-        {/* ── Sticky BlurView header ── */}
+        {}
         <SafeAreaView
           edges={["top"]}
           style={{
@@ -250,7 +379,7 @@ export default function ProfileScreen() {
               </Text>
             </YStack>
 
-            {/* Settings shortcut */}
+            {}
             <TouchableOpacity
               activeOpacity={0.8}
               style={{
@@ -276,9 +405,17 @@ export default function ProfileScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={iconColor}
+              colors={[accentColor]}
+            />
+          }
         >
           <YStack paddingHorizontal={20} paddingTop={28} gap={24}>
-            {/* ── Avatar card ── */}
+            {}
             <View
               borderRadius={24}
               overflow="hidden"
@@ -297,41 +434,53 @@ export default function ProfileScreen() {
                 end={[1, 1]}
                 style={{ padding: 24, alignItems: "center", gap: 12 }}
               >
-                {/* Avatar */}
+                {}
                 <TouchableOpacity
                   onPress={handleAvatarUpload}
                   activeOpacity={0.8}
                 >
                   <View style={{ position: "relative" }}>
-                    <Avatar
-                      circular
-                      size="$12"
+                    <View
+                      width={100}
+                      height={100}
+                      borderRadius={50}
+                      overflow="hidden"
                       style={{
-                        shadowColor: "#3b82f6",
+                        shadowColor: "#3B82F6",
                         shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 16,
+                        shadowOpacity: 0.25,
+                        shadowRadius: 12,
                         elevation: 10,
                         opacity: uploadingAvatar ? 0.6 : 1,
                       }}
                     >
-                      <Avatar.Image
-                        src={
-                          session.user.image
-                            ? session.user.image.startsWith("http")
-                              ? session.user.image
-                              : `${API_URL.replace("/api", "")}${session.user.image}`
-                            : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"
-                        }
-                      />
-                      <Avatar.Fallback backgroundColor="$blue10">
-                        <Text color="white" fontSize={28} fontWeight="800">
-                          {initials}
-                        </Text>
-                      </Avatar.Fallback>
-                    </Avatar>
+                      {session.user.image ? (
+                        <Image
+                          source={{ uri: buildUrl(session.user.image) }}
+                          contentFit="cover"
+                          style={{ width: "100%", height: "100%" }}
+                          transition={300}
+                        />
+                      ) : (
+                        <LinearGradient
+                          colors={["#3B82F6", "#6366F1"]}
+                          start={[0, 0]}
+                          end={[1, 1]}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text color="white" fontSize={32} fontWeight="800">
+                            {initials}
+                          </Text>
+                        </LinearGradient>
+                      )}
+                    </View>
 
-                    {/* Camera icon over avatar */}
+                    {}
                     <View
                       style={{
                         position: "absolute",
@@ -342,7 +491,7 @@ export default function ProfileScreen() {
                         borderRadius: 16,
                         backgroundColor: "#3b82f6",
                         borderWidth: 2.5,
-                        borderColor: isDark ? "#171717" : "#fff", // adjust approx background
+                        borderColor: isDark ? "#171717" : "#fff", 
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -383,16 +532,31 @@ export default function ProfileScreen() {
                   </XStack>
                 </YStack>
 
-                {/* Stats row inside the card */}
+                {}
                 <XStack gap={10} width="100%" marginTop={4}>
-                  <StatBadge value="128" label="Saved" isDark={isDark} />
-                  <StatBadge value="24" label="Collections" isDark={isDark} />
-                  <StatBadge value="5" label="Downloads" isDark={isDark} />
+                  <StatBadge
+                    value={stats?.favorites?.toString() || "0"}
+                    label="Saved"
+                    isDark={isDark}
+                    loading={statsLoading}
+                  />
+                  <StatBadge
+                    value={stats?.uploads?.toString() || "0"}
+                    label="Uploads"
+                    isDark={isDark}
+                    loading={statsLoading}
+                  />
+                  <StatBadge
+                    value={stats?.saved?.toString() || "0"}
+                    label="Downloads"
+                    isDark={isDark}
+                    loading={statsLoading}
+                  />
                 </XStack>
               </LinearGradient>
             </View>
 
-            {/* ── Account section ── */}
+            {}
             <YStack gap={10}>
               <Text
                 fontSize={11}
@@ -405,26 +569,54 @@ export default function ProfileScreen() {
                 Account
               </Text>
               <MenuItem
+                icon="cloud-upload-outline"
+                label="My Uploads"
+                onPress={() => router.push("/my-wallpapers" as any)}
+                isDark={isDark}
+              />
+              <MenuItem
+                icon="download-outline"
+                label="My Downloads"
+                onPress={() => router.push("/downloads")}
+                isDark={isDark}
+              />
+              <MenuItem
                 icon="person-outline"
                 label="Edit Profile"
-                onPress={() => {}}
+                onPress={handleEditPress}
+                isDark={isDark}
+              />
+              <MenuItem
+                icon="lock-closed-outline"
+                label="Change Password"
+                onPress={() => setIsPasswordModalOpen(true)}
                 isDark={isDark}
               />
               <MenuItem
                 icon="notifications-outline"
                 label="Notifications"
-                onPress={() => {}}
+                onPress={() => {
+                  Alert.alert(
+                    "Notifications",
+                    "Notification settings coming soon!",
+                  );
+                }}
                 isDark={isDark}
               />
               <MenuItem
                 icon="color-palette-outline"
                 label="Appearance"
-                onPress={() => {}}
+                onPress={() => {
+                  Alert.alert(
+                    "Appearance",
+                    "The app follows your system preference. Change it in your device settings.",
+                  );
+                }}
                 isDark={isDark}
               />
             </YStack>
 
-            {/* ── Support section ── */}
+            {}
             <YStack gap={10}>
               <Text
                 fontSize={11}
@@ -450,7 +642,29 @@ export default function ProfileScreen() {
               />
             </YStack>
 
-            {/* ── Sign Out ── */}
+            {}
+            {(session.user as any).role === "admin" && (
+              <YStack gap={10}>
+                <Text
+                  fontSize={11}
+                  fontWeight="700"
+                  color="$blue10"
+                  letterSpacing={1.5}
+                  paddingHorizontal={4}
+                  textTransform="uppercase"
+                >
+                  Administrative
+                </Text>
+                <MenuItem
+                  icon="shield-outline"
+                  label="Admin Dashboard"
+                  onPress={() => router.push("/(admin-tabs)" as any)}
+                  isDark={isDark}
+                />
+              </YStack>
+            )}
+
+            {}
             <YStack gap={10}>
               <MenuItem
                 icon="log-out-outline"
@@ -464,14 +678,243 @@ export default function ProfileScreen() {
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} />
+
+        {}
+        <Dialog modal open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <Adapt platform="touch">
+            <Sheet zIndex={200000} modal dismissOnSnapToBottom>
+              <Sheet.Frame padding="$4" gap="$4">
+                <Adapt.Contents />
+              </Sheet.Frame>
+              <Sheet.Overlay />
+            </Sheet>
+          </Adapt>
+
+          <Dialog.Portal>
+            <Dialog.Overlay
+              key="overlay"
+              opacity={0.5}
+              enterStyle={{ opacity: 0 }}
+              exitStyle={{ opacity: 0 }}
+            />
+
+            <Dialog.Content
+              bordered
+              elevate
+              key="content"
+              enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
+              exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+              x={0}
+              scale={1}
+              opacity={1}
+              y={0}
+              gap="$4"
+              width={width * 0.9}
+              maxWidth={450}
+              backgroundColor="$background"
+            >
+              <Dialog.Title fontWeight="800">Edit Profile</Dialog.Title>
+              <Dialog.Description color="$color10">
+                Update your personal information.
+              </Dialog.Description>
+
+              <YStack gap="$4" marginTop="$2">
+                <YStack gap="$2">
+                  <Label fontWeight="600">Full Name</Label>
+                  <Input
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Your Name"
+                    backgroundColor={
+                      isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }
+                  />
+                </YStack>
+
+                <YStack gap="$2">
+                  <Label fontWeight="600">Email Address (Read-only)</Label>
+                  <Input
+                    value={editEmail}
+                    editable={false}
+                    placeholder="your@email.com"
+                    autoCapitalize="none"
+                    backgroundColor={
+                      isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }
+                    opacity={0.6}
+                  />
+                  <Text fontSize={10} color="$color10" paddingLeft="$2">
+                    Email cannot be changed directly for security.
+                  </Text>
+                </YStack>
+              </YStack>
+
+              <XStack gap="$3" marginTop="$4" justifyContent="flex-end">
+                <Dialog.Close asChild>
+                  <TouchableOpacity
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text fontWeight="600" color="$color10">
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                </Dialog.Close>
+                <TouchableOpacity
+                  onPress={handleUpdateProfile}
+                  disabled={isUpdating}
+                  style={{
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    backgroundColor: "#3b82f6",
+                    opacity: isUpdating ? 0.6 : 1,
+                  }}
+                >
+                  {isUpdating ? (
+                    <Spinner color="white" />
+                  ) : (
+                    <Text fontWeight="700" color="white">
+                      Save Changes
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </XStack>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+
+        {}
+        <Dialog
+          modal
+          open={isPasswordModalOpen}
+          onOpenChange={setIsPasswordModalOpen}
+        >
+          <Adapt platform="touch">
+            <Sheet zIndex={200000} modal dismissOnSnapToBottom>
+              <Sheet.Frame padding="$4" gap="$4">
+                <Adapt.Contents />
+              </Sheet.Frame>
+              <Sheet.Overlay />
+            </Sheet>
+          </Adapt>
+
+          <Dialog.Portal>
+            <Dialog.Overlay
+              key="overlay"
+              opacity={0.5}
+              enterStyle={{ opacity: 0 }}
+              exitStyle={{ opacity: 0 }}
+            />
+
+            <Dialog.Content
+              bordered
+              elevate
+              key="content"
+              enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
+              exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+              x={0}
+              scale={1}
+              opacity={1}
+              y={0}
+              gap="$4"
+              width={width * 0.9}
+              maxWidth={450}
+              backgroundColor="$background"
+            >
+              <Dialog.Title fontWeight="800">Change Password</Dialog.Title>
+              <Dialog.Description color="$color10">
+                Enter your current and new passwords.
+              </Dialog.Description>
+
+              <YStack gap="$4" marginTop="$2">
+                <YStack gap="$2">
+                  <Label fontWeight="600">Current Password</Label>
+                  <Input
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    secureTextEntry
+                    placeholder="••••••••"
+                    backgroundColor={
+                      isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }
+                  />
+                </YStack>
+
+                <YStack gap="$2">
+                  <Label fontWeight="600">New Password</Label>
+                  <Input
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                    placeholder="••••••••"
+                    backgroundColor={
+                      isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }
+                  />
+                </YStack>
+
+                <YStack gap="$2">
+                  <Label fontWeight="600">Confirm New Password</Label>
+                  <Input
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    placeholder="••••••••"
+                    backgroundColor={
+                      isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }
+                  />
+                </YStack>
+              </YStack>
+
+              <XStack gap="$3" marginTop="$4" justifyContent="flex-end">
+                <Dialog.Close asChild>
+                  <TouchableOpacity
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text fontWeight="600" color="$color10">
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                </Dialog.Close>
+                <TouchableOpacity
+                  onPress={handleChangePassword}
+                  disabled={isUpdatingPassword}
+                  style={{
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    backgroundColor: "#3b82f6",
+                    opacity: isUpdatingPassword ? 0.6 : 1,
+                  }}
+                >
+                  {isUpdatingPassword ? (
+                    <Spinner color="white" />
+                  ) : (
+                    <Text fontWeight="700" color="white">
+                      Update Password
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </XStack>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
       </View>
     );
   }
 
-  // ── Guest / Logged Out ──
   return (
     <View flex={1} backgroundColor="$background">
-      {/* ── Same BlurView header pattern as explore ── */}
+      {}
       <SafeAreaView
         edges={["top"]}
         style={{
@@ -517,7 +960,7 @@ export default function ProfileScreen() {
         paddingHorizontal={28}
         gap={0}
       >
-        {/* Icon */}
+        {}
         <View
           width={100}
           height={100}
@@ -558,7 +1001,7 @@ export default function ProfileScreen() {
           across devices.
         </Text>
 
-        {/* Feature pills */}
+        {}
         <XStack
           gap={8}
           flexWrap="wrap"
@@ -586,7 +1029,7 @@ export default function ProfileScreen() {
           ))}
         </XStack>
 
-        {/* CTAs */}
+        {}
         <YStack width="100%" gap={12}>
           <TouchableOpacity
             onPress={() => router.push("/login")}

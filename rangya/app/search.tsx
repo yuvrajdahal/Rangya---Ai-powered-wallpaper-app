@@ -58,9 +58,9 @@ export default function SearchScreen() {
     reset,
   } = useSearchStore();
 
-  // Local debounce for query
+  
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedQuery(query), 400);
@@ -81,7 +81,7 @@ export default function SearchScreen() {
     },
   });
 
-  // Collect palette colors from all returned images
+  
   const allPaletteColors = Array.from(
     new Set<string>(images.flatMap((img: any) => img.palette ?? [])),
   ).slice(0, 14);
@@ -128,6 +128,8 @@ export default function SearchScreen() {
               title: img.title || img.category?.name || "Wallpaper",
               category: img.category?.name || "",
               blurhash: img.blurhash || "",
+              isAi: img.isAi ? "true" : "false",
+              uploaderId: img.userId || "",
             },
           })
         }
@@ -148,7 +150,7 @@ export default function SearchScreen() {
             style={{ width: "100%", height: "100%" }}
             transition={300}
           />
-          {/* Tone badge */}
+          {}
           {img.colorTone && img.colorTone !== "NEUTRAL" && (
             <View
               position="absolute"
@@ -196,7 +198,7 @@ export default function SearchScreen() {
 
   return (
     <View flex={1} backgroundColor="$background">
-      {/* ── App Bar ── */}
+      {}
       <SafeAreaView
         edges={["top"]}
         style={{
@@ -212,7 +214,7 @@ export default function SearchScreen() {
             paddingVertical: 10,
           }}
         >
-          {/* Back + Search input row */}
+          {}
           <XStack alignItems="center" gap={10}>
             <TouchableOpacity
               onPress={() => {
@@ -252,7 +254,7 @@ export default function SearchScreen() {
                 autoFocus
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search wallpapers, categories…"
+                placeholder="Search wallpapers, artists, categories…"
                 placeholderTextColor={
                   isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.3)"
                 }
@@ -270,7 +272,7 @@ export default function SearchScreen() {
             </XStack>
           </XStack>
 
-          {/* ── Tone filter chips ── */}
+          {}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -324,7 +326,7 @@ export default function SearchScreen() {
         }
       >
         <YStack padding={HORIZONTAL_PADDING} paddingTop="$3" gap="$3">
-          {/* ── Palette color dots ── */}
+          {}
           {allPaletteColors.length > 0 && (
             <ScrollView
               horizontal
@@ -372,14 +374,14 @@ export default function SearchScreen() {
             </ScrollView>
           )}
 
-          {/* ── Result count ── */}
+          {}
           <Text color="$color11" fontSize={13} paddingHorizontal="$1">
             {isFetching
               ? "Searching…"
               : `${images.length} result${images.length !== 1 ? "s" : ""}`}
           </Text>
 
-          {/* ── Grid ── */}
+          {}
           {isLoading ? (
             renderSkeletons()
           ) : images.length > 0 ? (

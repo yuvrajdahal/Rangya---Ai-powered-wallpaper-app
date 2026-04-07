@@ -3,7 +3,7 @@ import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-// The backend is running locally on port 3000
+
 export const API_URL = "http://192.168.100.13:3000/api";
 
 export const authClient = createAuthClient({

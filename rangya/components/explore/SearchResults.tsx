@@ -17,7 +17,11 @@ export function SearchResults({
 
   return (
     <YStack gap="$3" paddingTop="$4" paddingHorizontal="$5">
-      <SectionHeader title={`"${searchQuery}"`} subtitle={`${filteredImages.length} wallpaper${filteredImages.length !== 1 ? "s" : ""} found`} noPadding />
+      <SectionHeader 
+        title={searchQuery || "Search"} 
+        subtitle={`${filteredImages.length} results found`} 
+        noPadding 
+      />
       {filteredImages.length === 0 ? (
         <YStack alignItems="center" paddingVertical="$8" gap="$3">
           <View width={64} height={64} borderRadius={20} backgroundColor="$color3" alignItems="center" justifyContent="center">
@@ -34,6 +38,8 @@ export function SearchResults({
                 imageUri={buildUrl(img.url)}
                 categoryName={img.category?.name}
                 blurhash={img.blurhash}
+                isAi={img.isAi}
+                user={img.user}
                 onPress={() => onNavigate(img)}
               />
             </View>

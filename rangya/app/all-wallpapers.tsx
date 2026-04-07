@@ -86,6 +86,8 @@ export default function AllWallpapersScreen() {
               title: img.title || "Wallpaper",
               category: img.category?.name || "",
               blurhash: img.blurhash || "",
+              isAi: img.isAi ? "true" : "false",
+              uploaderId: img.userId || "",
             },
           })
         }
@@ -106,6 +108,36 @@ export default function AllWallpapersScreen() {
             style={{ width: "100%", height: "100%" }}
             transition={300}
           />
+          {img.isAi && (
+            <View
+              position="absolute"
+              top={8}
+              right={8}
+              backgroundColor="rgba(0,0,0,0.55)"
+              paddingHorizontal={6}
+              paddingVertical={2}
+              borderRadius={6}
+              borderWidth={1}
+              borderColor="rgba(255,255,255,0.2)"
+            >
+              <XStack alignItems="center" gap={4}>
+                <View
+                  width={5}
+                  height={5}
+                  borderRadius={2.5}
+                  backgroundColor="#3B82F6"
+                />
+                <Text
+                  color="white"
+                  fontSize={10}
+                  fontWeight="800"
+                  letterSpacing={0.5}
+                >
+                  AI
+                </Text>
+              </XStack>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );

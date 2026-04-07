@@ -40,7 +40,7 @@ export const PrimaryTextArea: React.FC<PrimaryTextAreaProps> = ({
         alignItems="flex-start"
         borderWidth={1}
         borderColor={isFocused ? "$blue10" : "$borderColor"}
-        // minHeight={minHeight}
+        
         shadowColor={isFocused ? "$blue10" : "transparent"}
         shadowOffset={{ width: 0, height: 0 }}
         shadowOpacity={isFocused ? 0.3 : 0}
@@ -86,7 +86,7 @@ export const PrimaryInput: React.FC<PrimaryInputProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const theme = useTheme();
 
-  // Resolve Tamagui tokens to real color values
+  
   const iconColor = isFocused ? theme.blue10?.get() : theme.color8?.get();
 
   return (
@@ -108,7 +108,7 @@ export const PrimaryInput: React.FC<PrimaryInputProps> = ({
           <Ionicons
             name={icon}
             size={20}
-            color={iconColor} // ✅ resolved value, not token string
+            color={iconColor} 
           />
         )}
         <Input
@@ -136,7 +136,7 @@ export const PrimaryInput: React.FC<PrimaryInputProps> = ({
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color={iconColor} // ✅ resolved value, not token string
+              color={iconColor} 
             />
           </TouchableOpacity>
         )}

@@ -42,10 +42,13 @@ export default function LoginScreen() {
         Alert.alert("Login Failed", error.message || "Something went wrong");
       } else {
         completeOnboarding();
-        if (router.canGoBack()) {
+        
+        if ((data?.user as any)?.role === "admin") {
+          router.replace("/(admin-tabs)" as any);
+        } else if (router.canGoBack()) {
           router.back();
         } else {
-          router.replace("/(tabs)/profile");
+          router.replace("/(tabs)/explore");
         }
       }
     } catch (err) {
@@ -57,7 +60,7 @@ export default function LoginScreen() {
 
   return (
     <View flex={1} backgroundColor="$background">
-      {/* App Bar */}
+      {}
       <SafeAreaView edges={["top"]} style={{ zIndex: 10 }}>
         <BlurView
           intensity={72}
@@ -105,16 +108,12 @@ export default function LoginScreen() {
         </BlurView>
       </SafeAreaView>
 
-      {/*
-        KeyboardAvoidingView only adjusts the bottom inset.
-        ScrollView lets the content scroll naturally if the keyboard
-        overlaps — the hero stays put and only the form scrolls into view.
-      */}
+      {}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        // On iOS, offset by the app-bar height so padding doesn't
-        // over-compensate and shift the whole screen.
+        
+        
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <ScrollView
@@ -129,7 +128,7 @@ export default function LoginScreen() {
             gap="$5"
             paddingVertical="$8"
           >
-            {/* Hero */}
+            {}
             <YStack alignItems="center" gap="$2">
               <View
                 width={60}
@@ -161,7 +160,7 @@ export default function LoginScreen() {
               </Text>
             </YStack>
 
-            {/* Form Card */}
+            {}
             <YStack
               borderRadius={20}
               padding="$4"
@@ -196,7 +195,7 @@ export default function LoginScreen() {
               </XStack>
             </YStack>
 
-            {/* CTA */}
+            {}
             <YStack gap="$3">
               <TouchableOpacity
                 onPress={handleLogin}

@@ -20,14 +20,14 @@ const RootProvider: React.FC<RootProviderProps> = ({ children }) => {
   const colorScheme = useColorScheme();
   const theme = useTheme();
 
-  // Align React Navigation theme with basic system colors
-  // Tamagui handles the actual UI colors within the screens
+  
+  
   const baseTheme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
   const navigationTheme = {
     ...baseTheme,
     colors: {
       ...baseTheme.colors,
-      // Tamagui config v3 dark theme background is #050505, light is #fff
+      
       background: colorScheme === "dark" ? "#050505" : "#fff",
     },
   };

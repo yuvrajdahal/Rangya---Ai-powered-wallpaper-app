@@ -53,7 +53,21 @@ export default function ExploreScreen() {
   } = useQuery({
     queryKey: ["images"],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/images`);
+      const response = await axios.get();
+      return response.data.images || [];
+    },
+  });
+
+  
+  const {
+    data: diverseImages = [],
+    isLoading: isLoadingDiverse,
+    refetch: refetchDiverse,
+    isFetching: isFetchingDiverse,
+  } = useQuery({
+    queryKey: ["diverse-images"],
+    queryFn: async () => {
+      const response = await axios.get();
       return response.data.images || [];
     },
   });
@@ -66,12 +80,12 @@ export default function ExploreScreen() {
   } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/categories`);
+      const response = await axios.get();
       return response.data.categories || [];
     },
   });
 
-  // ── Fetch top artists ───────────────────────────────────────────
+  
   const {
     data: artists = [],
     isLoading: isLoadingArtists,
@@ -80,20 +94,25 @@ export default function ExploreScreen() {
   } = useQuery({
     queryKey: ["artists"],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/images/artists`);
+      const response = await axios.get();
       return response.data.artists || [];
     },
   });
 
   const onRefresh = () => {
     refetch();
+    refetchDiverse();
     refetchCategories();
     refetchArtists();
   };
 
-  const refreshing = isFetching || isFetchingCategories || isFetchingArtists;
+  const refreshing =
+    isFetching ||
+    isFetchingDiverse ||
+    isFetchingCategories ||
+    isFetchingArtists;
 
-  // ── Dynamic colour palettes ──────────────────────────────────────
+  
   const dynamicPalettes = useMemo(() => {
     const colors = new Set<string>();
     images.forEach((img: any) => {
@@ -114,7 +133,7 @@ export default function ExploreScreen() {
         ];
   }, [images]);
 
-  // ── Navigate to search on input ───────────────────────────────────
+  
   const handleSearch = (text: string) => {
     setLocalSearchQuery(text);
   };
@@ -138,6 +157,8 @@ export default function ExploreScreen() {
         blurhash: img.blurhash || "",
         isPremium: img.isPremium || "false",
         price: img.price || "",
+        isAi: img.isAi ? "true" : "false",
+        uploaderId: img.userId || "",
       },
     });
 
@@ -191,10 +212,10 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </XStack>
 
-        {/* ── Search input ── */}
+        {}
         <View marginHorizontal="$4" marginBottom="$2">
           <PrimaryInput
-            placeholder="Search wallpapers, artists, categories"
+            placeholder="Search wallpapers, artists, categories…"
             value={localSearchQuery}
             onChangeText={handleSearch}
             onSubmitEditing={handleSearchSubmit}
@@ -218,8 +239,8 @@ export default function ExploreScreen() {
         }
       >
         <BestOfMonth
-          images={images}
-          isLoading={isLoading}
+          images={diverseImages}
+          isLoading={isLoadingDiverse}
           onNavigate={navigateToWallpaper}
           onSeeAll={() => router.push("/best-of-month")}
         />

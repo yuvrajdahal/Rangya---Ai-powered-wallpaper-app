@@ -41,7 +41,7 @@ const ONBOARDING_DATA = [
 ];
 
 export default function EntryScreen() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, error } = useSession();
   const { hasCompletedOnboarding, completeOnboarding } = useOnboardingStore();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
@@ -50,9 +50,16 @@ export default function EntryScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  
+  useEffect(() => {
+    if (error) {
+      console.error("Session initialization error:", error);
+    }
+  }, [error]);
+
   if (!rootNavigationState?.key) return null;
 
-  // While checking session state
+  
   if (isPending) {
     return (
       <View
@@ -60,14 +67,17 @@ export default function EntryScreen() {
         alignItems="center"
         justifyContent="center"
         backgroundColor="$background"
+        padding="$4"
       >
         <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
-
-  // If user is logged in OR has already skipped/completed onboarding -> go direct to explore
+  
   if (session || hasCompletedOnboarding) {
+    if ((session?.user as any)?.role === "admin") {
+      return <Redirect href={"/(admin-tabs)" as any} />;
+    }
     return <Redirect href="/(tabs)/explore" />;
   }
 
@@ -88,7 +98,7 @@ export default function EntryScreen() {
   return (
     <View flex={1} backgroundColor="$background">
       <SafeAreaView style={{ flex: 1, paddingTop: 20 }}>
-        {/* Skip Button Top (or could put it floating) */}
+        {}
 
         <PagerView
           ref={pagerRef}
@@ -183,15 +193,7 @@ export default function EntryScreen() {
                       </XStack>
                     </TouchableOpacity>
 
-                    {/* <TouchableOpacity
-                      onPress={handleNext}
-                      activeOpacity={0.6}
-                      style={{ paddingVertical: 10, paddingHorizontal: 20 }}
-                    >
-                      <Text color="$color11" fontSize={15} fontWeight="600">
-                        Continue as Guest
-                      </Text>
-                    </TouchableOpacity> */}
+                    {}
                   </YStack>
                 )}
               </YStack>
@@ -199,7 +201,7 @@ export default function EntryScreen() {
           ))}
         </PagerView>
 
-        {/* Bottom Area */}
+        {}
         <YStack
           paddingHorizontal={32}
           paddingBottom={32}
@@ -212,7 +214,7 @@ export default function EntryScreen() {
               alignItems="center"
               width="100%"
             >
-              {/* Skip Button */}
+              {}
               <TouchableOpacity
                 onPress={handleSkip}
                 style={{ padding: 10, marginLeft: -10 }}
@@ -222,7 +224,7 @@ export default function EntryScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Dots Indicator */}
+              {}
               <XStack gap={8} alignItems="center">
                 {ONBOARDING_DATA.map((_, i) => (
                   <View
@@ -241,7 +243,7 @@ export default function EntryScreen() {
                 ))}
               </XStack>
 
-              {/* Next Button */}
+              {}
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/explore")}
                 activeOpacity={0.8}
@@ -268,7 +270,7 @@ export default function EntryScreen() {
               alignItems="center"
               width="100%"
             >
-              {/* Skip Button */}
+              {}
               <TouchableOpacity
                 onPress={handleSkip}
                 style={{ padding: 10, marginLeft: -10 }}
@@ -278,7 +280,7 @@ export default function EntryScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Dots Indicator */}
+              {}
               <XStack gap={8} alignItems="center">
                 {ONBOARDING_DATA.map((_, i) => (
                   <View
@@ -297,7 +299,7 @@ export default function EntryScreen() {
                 ))}
               </XStack>
 
-              {/* Next Button */}
+              {}
               <TouchableOpacity
                 onPress={handleNext}
                 activeOpacity={0.8}

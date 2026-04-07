@@ -33,8 +33,8 @@ export default function ArtistProfileScreen() {
   const { data: artistData, isLoading } = useQuery({
     queryKey: ["artist", id],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/images/artist/${id}`);
-      return response.data; // { artist, images }
+      const response = await axios.get(`${API_URL}/users/artist/${id}`);
+      return response.data; 
     },
     enabled: !!id,
   });
@@ -43,7 +43,7 @@ export default function ArtistProfileScreen() {
   const images: any[] = artistData?.images || [];
   const displayName = artist?.name || name || "Artist";
 
-  // Compute initials for Avatar fallback
+  
   const initials = displayName
     .split(" ")
     .map((n: string) => n[0])
@@ -134,7 +134,7 @@ export default function ArtistProfileScreen() {
 
   return (
     <View flex={1} backgroundColor="$background">
-      {/* ── App Bar ── */}
+      {}
       <SafeAreaView edges={["top"]} style={{ zIndex: 10 }}>
         <BlurView
           intensity={72}
@@ -147,7 +147,7 @@ export default function ArtistProfileScreen() {
           }}
         >
           <XStack alignItems="center" justifyContent="space-between">
-            {/* Back */}
+            {}
             <TouchableOpacity
               onPress={() => router.back()}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -163,7 +163,7 @@ export default function ArtistProfileScreen() {
               <Ionicons name="chevron-back" size={22} color={iconColor} />
             </TouchableOpacity>
 
-            {/* Centered title */}
+            {}
             <Text
               fontSize={17}
               fontWeight="700"
@@ -176,16 +176,16 @@ export default function ArtistProfileScreen() {
               Profile
             </Text>
 
-            {/* Empty space for balance */}
+            {}
             <View width={38} />
           </XStack>
         </BlurView>
       </SafeAreaView>
 
-      {/* ── Content ── */}
+      {}
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack padding={HORIZONTAL_PADDING} paddingTop="$3" gap="$3">
-          {/* Sub-header row */}
+          {}
           <XStack
             alignItems="center"
             justifyContent="space-between"
@@ -199,11 +199,10 @@ export default function ArtistProfileScreen() {
                     artist?.image
                       ? artist.image.startsWith("http")
                         ? artist.image
-                        : `${BASE_URL}${artist.image}`
-                      : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"
+                        : `${BASE_URL}${artist.image}`                      : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"
                   }
                 />
-                {/* Fallback pattern mirroring profile */}
+                {}
                 <Avatar.Fallback backgroundColor="$blue10" alignItems="center" justifyContent="center">
                   <Text color="white" fontSize={16} fontWeight="800">
                     {initials}
@@ -228,7 +227,7 @@ export default function ArtistProfileScreen() {
               </YStack>
             </XStack>
 
-            {/* Filter pill (optional, visually balanced) */}
+            {}
             <TouchableOpacity
               style={{
                 flexDirection: "row",
@@ -247,7 +246,7 @@ export default function ArtistProfileScreen() {
             </TouchableOpacity>
           </XStack>
 
-          {/* Masonry grid */}
+          {}
           {isLoading ? (
             <XStack gap={COLUMN_GAP} alignItems="flex-start">
               {renderSkeletonColumn([0, 2, 4])}

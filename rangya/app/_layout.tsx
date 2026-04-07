@@ -8,8 +8,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import RootProvider from "@/providers/app-provider";
 import tamaguiConfig from "../tamagui.config";
 
+import * as SystemUI from "expo-system-ui";
+import { useEffect } from "react";
+
 export const unstable_settings = {
-  // Removed anchor: "(tabs)" so index.tsx can act as the main entry point
+  
 };
 
 function AppStack({ colorScheme }: { colorScheme: any }) {
@@ -22,7 +25,7 @@ function AppStack({ colorScheme }: { colorScheme: any }) {
         contentStyle: {
           backgroundColor:
             theme.background?.val ||
-            (colorScheme === "dark" ? "#050505" : "#fff"),
+            (colorScheme === "dark" ? "#050505" : "#ffffff"),
         },
       }}
     >
@@ -53,6 +56,12 @@ export default function RootLayout() {
     Inter: require("@tamagui/font-inter/otf/Inter-Medium.otf"),
     InterBold: require("@tamagui/font-inter/otf/Inter-Bold.otf"),
   });
+
+  useEffect(() => {
+    
+    const bgColor = colorScheme === "dark" ? "#050505" : "#ffffff";
+    SystemUI.setBackgroundColorAsync(bgColor);
+  }, [colorScheme]);
 
   if (!loaded) {
     return null;

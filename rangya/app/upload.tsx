@@ -1,8 +1,6 @@
-// Paste March 17, 2026 - Updated implementation
-
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import * as MediaLibrary from "expo-media-library"; // NEW: Media library for downloading
+import * as MediaLibrary from "expo-media-library";
 import { useState } from "react";
 import { API_URL, authClient, getAuthHeaders } from "@/lib/auth-client";
 import { useRouter } from "expo-router";
@@ -109,7 +107,7 @@ export default function UploadPage() {
   );
   const [generatedCategoryName, setGeneratedCategoryName] = useState("");
 
-  // NEW: Full Screen Preview States
+  
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
@@ -188,6 +186,7 @@ export default function UploadPage() {
     }
     if (title) formData.append("title", title);
     if (description) formData.append("description", description);
+    if (mode === "generate") formData.append("isAi", "true");
 
     uploadMutation.mutate(formData);
   };
@@ -205,10 +204,10 @@ export default function UploadPage() {
   const buildPrompt = () => {
     const parts = [prompt.trim()];
     if (selectedStyles.length)
-      parts.push(`Style: ${selectedStyles.join(", ")}`);
+      parts.push(`Styles: ${selectedStyles.join(", ")}`);
     if (selectedThemes.length)
-      parts.push(`Theme: ${selectedThemes.join(", ")}`);
-    parts.push(`Aspect ratio: ${selectedRatio}`);
+      parts.push(`Themes: ${selectedThemes.join(", ")}`);
+    parts.push(`Aspect Ratio: ${selectedRatio}`);
     parts.push(
       "High resolution mobile wallpaper, 9:16 portrait orientation. No text, no watermarks.",
     );
@@ -254,7 +253,7 @@ export default function UploadPage() {
         const err = await response.json().catch(() => ({}));
         Alert.alert(
           "Error",
-          err.message || `Generation failed (${response.status})`,
+          err.message || "Failed to generate image",
         );
         return;
       }
@@ -272,7 +271,7 @@ export default function UploadPage() {
     }
   };
 
-  // NEW: Download Image Handler
+  
   const handleDownload = async (uri: string) => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -290,7 +289,7 @@ export default function UploadPage() {
     }
   };
 
-  // NEW: Full Screen Preview Handler
+  
   const openPreview = (uri: string) => {
     setPreviewUri(uri);
     setIsPreviewVisible(true);
@@ -308,7 +307,7 @@ export default function UploadPage() {
 
   return (
     <View flex={1} backgroundColor="$background">
-      {/* FULL SCREEN PREVIEW MODAL */}
+      {}
       <Modal visible={isPreviewVisible} transparent={true} animationType="fade">
         <View flex={1} backgroundColor="black">
           {previewUri && (
@@ -383,7 +382,7 @@ export default function UploadPage() {
           </XStack>
         </BlurView>
 
-        {/* Mode Toggle */}
+        {}
         <XStack
           marginHorizontal="$5"
           marginTop="$3"
@@ -517,7 +516,7 @@ export default function UploadPage() {
                           <Feather name="x" size={14} color="white" />
                         </TouchableOpacity>
 
-                        {/* Overlay to indicate preview is clickable */}
+                        {}
                         <View
                           position="absolute"
                           bottom={10}
@@ -656,14 +655,18 @@ export default function UploadPage() {
                 />
 
                 <YStack gap="$3" marginTop="$2">
-                  <Text fontSize={13} fontWeight="600" color="$color11">Title (Optional)</Text>
+                  <Text fontSize={13} fontWeight="600" color="$color11">
+                    Title (Optional)
+                  </Text>
                   <PrimaryInput
                     placeholder="Enter image title"
                     value={title}
                     onChangeText={setTitle}
                     icon="text-outline"
                   />
-                  <Text fontSize={13} fontWeight="600" color="$color11">Description (Optional)</Text>
+                  <Text fontSize={13} fontWeight="600" color="$color11">
+                    Description (Optional)
+                  </Text>
                   <PrimaryTextArea
                     placeholder="Enter image description"
                     value={description}
@@ -671,7 +674,7 @@ export default function UploadPage() {
                   />
                 </YStack>
 
-                {/* Premium Switch logic remains same */}
+                {}
                 <View
                   borderRadius={20}
                   padding="$4"
@@ -732,10 +735,10 @@ export default function UploadPage() {
                       <View height={1} backgroundColor="$borderColor" />
                       <YStack marginTop="$2" gap="$2">
                         <Text fontSize={13} fontWeight="600" color="$color11">
-                          Price (USD)
+                          Price (NPR)
                         </Text>
                         <PrimaryInput
-                          placeholder="e.g. 2.99"
+                          placeholder="e.g. 100"
                           keyboardType="numeric"
                           value={price}
                           onChangeText={setPrice}
@@ -748,7 +751,7 @@ export default function UploadPage() {
               </>
             ) : (
               <>
-                {/* AI Generator Tools... (Model, Prompt, Styles, Themes remain identical) */}
+                {}
                 <YStack gap="$3">
                   <SectionLabel label="Model" icon="hardware-chip-outline" />
                   <XStack gap="$2">
@@ -938,7 +941,7 @@ export default function UploadPage() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Generated Preview & Actions */}
+                {}
                 {generatedImageUri && (
                   <YStack gap="$4">
                     <View
@@ -1003,7 +1006,7 @@ export default function UploadPage() {
                         </Text>
                       </XStack>
 
-                      {/* NEW: Tooling Options for Generated Image */}
+                      {}
                       <XStack gap="$3" marginTop="$1">
                         <TouchableOpacity onPress={handleGenerate}>
                           <XStack
@@ -1084,7 +1087,7 @@ export default function UploadPage() {
               </>
             )}
 
-            {/* Action Buttons: Cancel and Upload (Works for both manual and generated) */}
+            {}
             {(mode === "upload" || generatedImageUri) && (
               <XStack gap="$3" marginTop="$2">
                 <TouchableOpacity

@@ -45,14 +45,20 @@ export default function SignupScreen() {
     try {
       const { data, error } = await signUp.email({ email, password, name });
       if (error) {
-        console.log(JSON.stringify(error));
+        console.log("signup", JSON.stringify(error));
         Alert.alert("Signup Failed", error.message || "Something went wrong");
       } else {
         completeOnboarding();
         Alert.alert("Success", "Account created successfully!");
-        router.replace("/(tabs)/profile");
+        
+        if ((data?.user as any)?.role === "admin") {
+          router.replace("/(admin-tabs)" as any);
+        } else {
+          router.replace("/(tabs)/explore");
+        }
       }
     } catch (err) {
+      console.log(err);
       Alert.alert("Error", "An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -61,7 +67,7 @@ export default function SignupScreen() {
 
   return (
     <View flex={1} backgroundColor="$background">
-      {/* App Bar */}
+      {}
       <SafeAreaView edges={["top"]} style={{ zIndex: 10 }}>
         <BlurView
           intensity={72}
@@ -103,10 +109,7 @@ export default function SignupScreen() {
         </BlurView>
       </SafeAreaView>
 
-      {/*
-        Same fix as login: ScrollView inside KeyboardAvoidingView
-        so the form scrolls up naturally rather than the whole screen jumping.
-      */}
+      {}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -124,7 +127,7 @@ export default function SignupScreen() {
             gap="$5"
             paddingVertical="$8"
           >
-            {/* Hero */}
+            {}
             <YStack alignItems="center" gap="$2">
               <View
                 width={60}
@@ -156,7 +159,7 @@ export default function SignupScreen() {
               </Text>
             </YStack>
 
-            {/* Form Card */}
+            {}
             <YStack
               borderRadius={20}
               padding="$4"
@@ -198,7 +201,7 @@ export default function SignupScreen() {
               />
             </YStack>
 
-            {/* CTA */}
+            {}
             <YStack gap="$3">
               <TouchableOpacity
                 onPress={handleSignup}

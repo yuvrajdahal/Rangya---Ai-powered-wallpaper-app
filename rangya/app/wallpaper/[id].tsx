@@ -38,6 +38,8 @@ export default function WallpaperDetailScreen() {
     blurhash,
     isPremium,
     price,
+    isAi,
+    uploaderId,
   } = useLocalSearchParams<{
     id: string;
     imageUrl: string;
@@ -47,6 +49,8 @@ export default function WallpaperDetailScreen() {
     blurhash?: string;
     isPremium?: string;
     price?: string;
+    isAi?: string;
+    uploaderId?: string;
   }>();
 
   const { buyImage, getFreeDownload } = useKhaltiPayment();
@@ -71,6 +75,28 @@ export default function WallpaperDetailScreen() {
   });
 
   const isFavorited = savedImages.some((img: any) => img.id === id);
+  const isOwner = session?.user?.id === uploaderId;
+
+  const { data: artistData } = useQuery({
+    queryKey: ["artist", uploaderId],
+    queryFn: async () => {
+      if (!uploaderId) return null;
+      const response = await axios.get(
+        `${API_URL}/images/artist/${uploaderId}`,
+      );
+      return response.data.artist || null;
+    },
+    enabled: !!uploaderId,
+  });
+
+  const artistInitials = uploadedBy
+    ? uploadedBy
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "??";
 
   const toggleInfo = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,12 +105,11 @@ export default function WallpaperDetailScreen() {
     Animated.spring(infoAnim, {
       toValue,
       useNativeDriver: true,
-      damping: 18,
-      stiffness: 200,
+      damping: 20,
+      stiffness: 150,
     }).start();
   };
 
-  // ── Download image to cache using the new File API ──────────────
   const downloadToCache = async (): Promise<string> => {
     const filename = `rangya_${id}_${Date.now()}.jpg`;
     const file = new File(Paths.cache, filename);
@@ -100,7 +125,6 @@ export default function WallpaperDetailScreen() {
     return status === "granted";
   };
 
-  // ── Auth guard ──────────────────────────────────────────────────
   const requireLogin = (action: string): boolean => {
     if (!isLoggedIn) {
       Alert.alert(
@@ -121,8 +145,7 @@ export default function WallpaperDetailScreen() {
     if (saving) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    console.log(isPremium);
-    if (isPremium === "true") {
+    if (isPremium === "true" && !isOwner) {
       setSaving(true);
       try {
         const { paymentUrl } = await buyImage(id);
@@ -150,13 +173,9 @@ export default function WallpaperDetailScreen() {
         return;
       }
 
-      // Get free download access mapping
-      const downloadUrl = await getFreeDownload(id);
-
       const localUri = await downloadToCache();
       await MediaLibrary.saveToLibraryAsync(localUri);
 
-      // Sync with backend (don't wait for it to finish)
       getAuthHeaders().then((headers) => {
         axios
           .post(`${API_URL}/images/saved/${id}`, { type: "SAVED" }, { headers })
@@ -207,15 +226,6 @@ export default function WallpaperDetailScreen() {
     toggleFavoriteMutation.mutate();
   };
 
-  // ── Apply wallpaper directly on device ─────────────────────────
-  //
-  // Android: Uses ACTION_ATTACH_DATA intent — this triggers the native
-  // "Set as wallpaper" system dialog (Home / Lock / Both) directly
-  // from within the app. No custom native module needed.
-  //
-  // iOS: System restriction prevents any app from setting the wallpaper
-  // programmatically. We save it and guide the user instead.
-  //
   const handleApply = async () => {
     if (!requireLogin("apply")) return;
     if (applying) return;
@@ -242,11 +252,6 @@ export default function WallpaperDetailScreen() {
         return;
       }
 
-      // ── Android path ────────────────────────────────────────────
-      // 1. Save the image to the media library so we get a real
-      //    content:// URI that the system WallpaperManager can read.
-      // 2. Fire ACTION_ATTACH_DATA — Android's built-in intent that
-      //    opens the "Set as…" picker (Home / Lock screen / Both).
       const granted = await requestMediaPermission();
       if (!granted) {
         Alert.alert(
@@ -257,25 +262,20 @@ export default function WallpaperDetailScreen() {
       }
 
       const localUri = await downloadToCache();
-
-      // Save to media library and get the resulting content URI
       const asset = await MediaLibrary.createAssetAsync(localUri);
       const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
       const contentUri = assetInfo?.localUri ?? localUri;
 
-      // ACTION_ATTACH_DATA opens the system "Set as wallpaper" sheet
       await IntentLauncher.startActivityAsync(
         "android.intent.action.ATTACH_DATA",
         {
           data: contentUri,
           type: "image/jpeg",
-          // FLAG_GRANT_READ_URI_PERMISSION | FLAG_ACTIVITY_NEW_TASK
           flags: 0x00000001 | 0x10000000,
           extra: { mimeType: "image/jpeg" },
         },
       );
 
-      // Sync with backend
       getAuthHeaders().then((headers) => {
         axios
           .post(
@@ -292,23 +292,17 @@ export default function WallpaperDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       console.error(e);
-
-      // Some OEM launchers don't handle ACTION_ATTACH_DATA — fall back gracefully
       const isIntentError =
         e?.code === "ERR_INTENT_LAUNCHER" ||
-        e?.message?.includes("No Activity found") ||
-        e?.message?.includes("ActivityNotFoundException");
+        e?.message?.includes("No Activity found");
 
       if (isIntentError) {
         Alert.alert(
-          "Not supported on this device",
-          "Your device doesn't support setting wallpapers this way. The wallpaper has been saved to your gallery — open it in Photos and choose 'Use as Wallpaper'.",
+          "Not supported",
+          "Wallpaper saved to gallery. Please apply it from your Photos app.",
         );
       } else {
-        Alert.alert(
-          "Error",
-          "Could not apply wallpaper. Please try Save instead.",
-        );
+        Alert.alert("Error", "Could not apply wallpaper.");
       }
     } finally {
       setApplying(false);
@@ -317,7 +311,7 @@ export default function WallpaperDetailScreen() {
 
   const infoSlideY = infoAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [240, 0],
+    outputRange: [400, 0],
   });
 
   return (
@@ -328,7 +322,6 @@ export default function WallpaperDetailScreen() {
         barStyle="light-content"
       />
 
-      {/* ── Full-screen image ── */}
       <Image
         source={{ uri: imageUrl }}
         placeholder={blurhash}
@@ -337,112 +330,166 @@ export default function WallpaperDetailScreen() {
         transition={300}
       />
 
-      {/* Dark gradient overlay — top + bottom */}
       <LinearGradient
         colors={[
-          "rgba(0,0,0,0.42)",
+          "rgba(0,0,0,0.45)",
           "transparent",
           "transparent",
-          "rgba(0,0,0,0.68)",
+          "rgba(0,0,0,0.8)",
         ]}
-        locations={[0, 0.25, 0.65, 1]}
+        locations={[0, 0.2, 0.6, 1]}
         style={StyleSheet.absoluteFillObject}
         pointerEvents="none"
       />
 
-      {/* ── Top bar: back button ── */}
       <SafeAreaView edges={["top"]} style={styles.topBar}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
           activeOpacity={0.8}
         >
-          <BlurView intensity={60} tint="dark" style={styles.blurCircle}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+          <BlurView intensity={35} tint="dark" style={styles.blurCircle}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </BlurView>
         </TouchableOpacity>
       </SafeAreaView>
 
-      {/* ── Info drawer (slides up) ── */}
       <Animated.View
         style={[styles.infoDrawer, { transform: [{ translateY: infoSlideY }] }]}
         pointerEvents={showInfo ? "auto" : "none"}
       >
-        <BlurView intensity={72} tint="dark" style={styles.infoBlur}>
-          <YStack gap={10} paddingHorizontal={20} paddingVertical={18}>
-            <Text fontSize={18} fontWeight="800" color="#fff">
-              {title || "Wallpaper"}
-            </Text>
-            {!!category && (
-              <XStack gap={6} alignItems="center">
-                <Ionicons
-                  name="grid-outline"
-                  size={14}
-                  color="rgba(255,255,255,0.6)"
-                />
-                <Text fontSize={13} color="rgba(255,255,255,0.7)">
-                  {category}
-                </Text>
-              </XStack>
-            )}
-            {!!uploadedBy && (
-              <XStack gap={6} alignItems="center">
-                <Ionicons
-                  name="person-outline"
-                  size={14}
-                  color="rgba(255,255,255,0.6)"
-                />
-                <Text fontSize={13} color="rgba(255,255,255,0.7)">
-                  By {uploadedBy}
-                </Text>
-              </XStack>
-            )}
-            <XStack gap={6} alignItems="center">
-              <Ionicons
-                name="resize-outline"
-                size={14}
-                color="rgba(255,255,255,0.6)"
-              />
-              <Text fontSize={13} color="rgba(255,255,255,0.7)">
-                High resolution · 9:16
+        <BlurView intensity={85} tint="dark" style={styles.infoBlur}>
+          <YStack
+            gap={20}
+            paddingHorizontal={24}
+            paddingTop={12}
+            paddingBottom={24}
+          >
+            <View
+              width={40}
+              height={5}
+              borderRadius={3}
+              backgroundColor="rgba(255,255,255,0.2)"
+              alignSelf="center"
+              marginBottom={8}
+            />
+
+            <YStack gap={4}>
+              <Text
+                fontSize={W < 400 ? 20 : 24}
+                fontWeight="900"
+                color="#fff"
+                letterSpacing={-0.5}
+              >
+                {title || "Untitled Masterpiece"}
               </Text>
-            </XStack>
-            {isPremium === "true" && (
-              <XStack gap={6} alignItems="center">
-                <Ionicons name="diamond" size={14} color="#facc15" />
-                <Text fontSize={13} color="#facc15" fontWeight="600">
-                  Premium Image {price ? `(NPR ${parseInt(price) / 100})` : ""}
-                </Text>
+              <Text
+                fontSize={14}
+                color="rgba(255,255,255,0.5)"
+                fontWeight="500"
+              >
+                In {category || "Art Discovery"}
+              </Text>
+            </YStack>
+
+            <XStack
+              padding={12}
+              borderRadius={16}
+              backgroundColor="rgba(255,255,255,0.08)"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <XStack gap={12} alignItems="center">
+                <View
+                  width={44}
+                  height={44}
+                  borderRadius={22}
+                  overflow="hidden"
+                  backgroundColor="$blue10"
+                  borderWidth={2}
+                  borderColor="rgba(255,255,255,0.2)"
+                >
+                  {artistData?.image ? (
+                    <Image
+                      source={{
+                        uri: `${API_URL.replace("/api", "")}${artistData.image}`,
+                      }}
+                      style={{ width: "100%", height: "100%" }}
+                    />
+                  ) : (
+                    <View
+                      flex={1}
+                      alignItems="center"
+                      justifyContent="center"
+                      backgroundColor="$blue9"
+                    >
+                      <Text color="white" fontSize={16} fontWeight="800">
+                        {artistInitials}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <YStack gap={1}>
+                  <Text color="#fff" fontSize={16} fontWeight="700">
+                    {uploadedBy || "Unknown Artist"}
+                  </Text>
+                  <Text
+                    color="rgba(255,255,255,0.5)"
+                    fontSize={12}
+                    fontWeight="600"
+                  >
+                    Featured Creator
+                  </Text>
+                </YStack>
               </XStack>
-            )}
+              <TouchableOpacity style={styles.viewProfileBtn}>
+                <Text color="$blue10" fontSize={12} fontWeight="800">
+                  PROFILE
+                </Text>
+              </TouchableOpacity>
+            </XStack>
+
+            <XStack gap={10} flexWrap="wrap">
+              {isAi === "true" && (
+                <Badge icon="sparkles" label="AI Generated" color="#3B82F6" />
+              )}
+              {isPremium === "true" && (
+                <Badge
+                  icon="diamond"
+                  label={`Premium · Rs. ${Math.round(parseInt(price!) / 100)}`}
+                  color="#facc15"
+                />
+              )}
+            </XStack>
           </YStack>
         </BlurView>
       </Animated.View>
 
-      {/* ── Bottom action bar ── */}
       <SafeAreaView edges={["bottom"]} style={styles.bottomSafe}>
         <View style={styles.actionBar}>
           <ActionButton
-            icon="information"
+            icon="information-circle"
             label="Info"
             active={showInfo}
             onPress={toggleInfo}
           />
           <ActionButton
             icon={isFavorited ? "heart" : "heart-outline"}
-            label={isFavorited ? "Liked" : "Favorite"}
+            label={isFavorited ? "Liked" : "Like"}
             active={isFavorited}
             loading={toggleFavoriteMutation.isPending}
             onPress={toggleFavorite}
           />
           <ActionButton
-            icon={isPremium === "true" ? "cart-outline" : "download-outline"}
-            label={isPremium === "true" ? "Buy" : "Save"}
+            icon={
+              isPremium === "true" && !isOwner ? "cart" : "arrow-down-circle"
+            }
+            label={isPremium === "true" && !isOwner ? "Buy" : "Save"}
             loading={saving}
             onPress={handleSave}
           />
           <ActionButton
-            icon="brush-outline"
+            icon="color-wand"
             label="Apply"
             accent
             loading={applying}
@@ -451,6 +498,34 @@ export default function WallpaperDetailScreen() {
         </View>
       </SafeAreaView>
     </View>
+  );
+}
+
+function Badge({
+  icon,
+  label,
+  color,
+}: {
+  icon: string;
+  label: string;
+  color: string;
+}) {
+  return (
+    <XStack
+      paddingHorizontal={12}
+      paddingVertical={8}
+      borderRadius={12}
+      backgroundColor="rgba(255,255,255,0.08)"
+      gap={8}
+      alignItems="center"
+      borderWidth={1}
+      borderColor={`${color}33`}
+    >
+      <Ionicons name={icon as any} size={14} color={color} />
+      <Text color={color} fontSize={12} fontWeight="800" letterSpacing={0.5}>
+        {label}
+      </Text>
+    </XStack>
   );
 }
 
@@ -472,19 +547,16 @@ function ActionButton({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.8}
-      style={[
-        styles.actionBtn,
-        accent && styles.accentBtn,
-        active && styles.activeBtn,
-      ]}
+      activeOpacity={0.7}
+      style={[styles.actionBtn, accent && styles.accentBtn]}
     >
       <BlurView
-        intensity={accent ? 0 : 55}
+        intensity={accent ? 0 : 40}
         tint="dark"
         style={[
           styles.actionBtnInner,
           accent && { backgroundColor: "#3B82F6" },
+          active && { backgroundColor: "rgba(59, 130, 246, 0.2)" },
         ]}
       >
         {loading ? (
@@ -492,17 +564,18 @@ function ActionButton({
         ) : (
           <Ionicons
             name={icon as any}
-            size={22}
+            size={24}
             color={active ? "#3B82F6" : "#fff"}
           />
         )}
         <Text
-          fontSize={12}
-          fontWeight="600"
+          fontSize={11}
+          fontWeight="800"
           color={active ? "#3B82F6" : "#fff"}
-          marginTop={4}
+          marginTop={6}
+          letterSpacing={0.2}
         >
-          {label}
+          {label.toUpperCase()}
         </Text>
       </BlurView>
     </TouchableOpacity>
@@ -517,30 +590,35 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
-  backBtn: { width: 40, height: 40, borderRadius: 20, overflow: "hidden" },
+  backBtn: { width: 48, height: 48, borderRadius: 24, overflow: "hidden" },
   blurCircle: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
   infoDrawer: {
     position: "absolute",
-    bottom: 110,
-    left: 16,
-    right: 16,
-    borderRadius: 20,
+    bottom: 120,
+    left: 12,
+    right: 12,
+    borderRadius: 28,
     overflow: "hidden",
     zIndex: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 20,
   },
   infoBlur: {
-    borderRadius: 20,
+    borderRadius: 28,
     overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.12)",
   },
   bottomSafe: {
     position: "absolute",
@@ -553,24 +631,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
     paddingTop: 12,
   },
-  actionBtn: { borderRadius: 18, overflow: "hidden", flex: 1 },
+  actionBtn: { borderRadius: 22, overflow: "hidden", flex: 1 },
   accentBtn: {
     shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 10,
   },
-  activeBtn: {},
   actionBtnInner: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    paddingVertical: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  viewProfileBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "rgba(59, 130, 246, 0.15)",
   },
 });
